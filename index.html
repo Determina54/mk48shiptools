@@ -1,0 +1,2274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>船只建造工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #1e1e2e;
+            color: #e0e0e0;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: 350px;
+            background-color: #252526;
+            border-right: 1px solid #3e3e42;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background-color: #1e1e1e;
+        }
+        
+        #coordinateSystem {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            z-index: 20; /* 坐标系在中间层 */
+        }
+        
+        .toolbar {
+            display: flex;
+            padding: 10px;
+            background-color: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            gap: 10px;
+        }
+        
+        .tool-btn {
+            background-color: #0e639c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        
+        .tool-btn:hover {
+            background-color: #1177bb;
+        }
+        
+        .tool-btn.active {
+            background-color: #007acc;
+        }
+        
+        .tool-btn.locked {
+            background-color: #555555;
+        }
+        
+        .tool-btn.locked:hover {
+            background-color: #666666;
+        }
+        
+        .tool-btn.secondary {
+            background-color: #3a3a3a;
+        }
+        
+        .tool-btn.secondary:hover {
+            background-color: #4a4a4a;
+        }
+        
+        .panel {
+            background-color: #2d2d30;
+            border-radius: 5px;
+            padding: 15px;
+        }
+        
+        .panel h3 {
+            margin-bottom: 10px;
+            font-size: 16px;
+            color: #cccccc;
+            border-bottom: 1px solid #3e3e42;
+            padding-bottom: 5px;
+        }
+        
+        .form-group {
+            margin-bottom: 10px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+        
+        textarea {
+            height: 120px;
+            resize: vertical;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .module-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 5px;
+            background-color: #1e1e1e;
+        }
+        
+        .module-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            background-color: #252526;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .module-item:hover {
+            background-color: #2a2d2e;
+        }
+        
+        .module-item.selected {
+            background-color: #37373d;
+            border-left: 3px solid #007acc;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            pointer-events: none;
+            z-index: 30;
+        }
+        
+        .control-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 30;
+        }
+        
+        .control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+        
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .point {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            z-index: 30; /* 武器装备点位在最上层 */
+        }
+        
+        .point-label {
+            position: absolute;
+            font-size: 12px;
+            transform: translate(10px, -10px);
+            pointer-events: none;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 2px 5px;
+            border-radius: 3px;
+            z-index: 30;
+        }
+        
+        .ship-image {
+            position: absolute;
+            pointer-events: auto; /* 允许图片接受鼠标事件 */
+            transform-origin: center center;
+            z-index: 10; /* 图片在最底层 */
+        }
+        
+        .code-output {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Courier New', monospace;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-y: auto;
+            max-height: 300px;
+            white-space: pre-wrap;
+        }
+        
+        .module-editor {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #3e3e42;
+        }
+        
+        .module-editor h4 {
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #cccccc;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .checkbox-group input {
+            width: auto;
+            margin-right: 8px;
+        }
+        
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .radio-option {
+            display: flex;
+            align-items: center;
+        }
+        
+        .radio-option input {
+            width: auto;
+            margin-right: 8px;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .module-type-tabs {
+            display: flex;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #3e3e42;
+        }
+        
+        .module-type-tab {
+            padding: 8px 15px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .module-type-tab.active {
+            border-bottom: 2px solid #007acc;
+            color: #007acc;
+        }
+        
+        .select-with-custom {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .select-with-custom select {
+            flex: 3;
+        }
+        
+        .select-with-custom input {
+            flex: 2;
+        }
+        
+        .dimension-info {
+            background-color: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 8px;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+        
+        .dimension-info div {
+            margin-bottom: 3px;
+        }
+        
+        .dimension-info .file-dim {
+            color: #888888;
+        }
+        
+        .dimension-info .content-dim {
+            color: #4ec9b0;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            color: white;
+        }
+        
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #007acc;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .warning-message {
+            background-color: #3a2c1e;
+            border: 1px solid #8a6d3b;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            color: #f0ad4e;
+        }
+        
+        .success-message {
+            background-color: #1e3a2c;
+            border: 1px solid #3b8a6d;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            color: #4ef0ad;
+        }
+        
+        .detection-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #1e1e1e;
+            border-radius: 4px;
+            border: 1px solid #3e3e42;
+        }
+        
+        .detection-controls h4 {
+            font-size: 14px;
+            margin-bottom: 5px;
+            color: #cccccc;
+        }
+        
+        .sensitivity-slider {
+            width: 100%;
+            margin: 5px 0;
+        }
+        
+        .sensitivity-value {
+            font-size: 12px;
+            color: #888888;
+            text-align: right;
+        }
+        
+        .center-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .center-controls button {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="panel">
+                <h3>船只信息</h3>
+                <div class="form-group">
+                    <label for="shipName">船只名称</label>
+                    <input type="text" id="shipName" value="Iowa">
+                </div>
+                <div class="form-group">
+                    <label for="shipClass">船只类型</label>
+                    <div class="select-with-custom">
+                        <select id="shipClass">
+                            <option value="Battleship">战列舰</option>
+                            <option value="Cruiser">巡洋舰</option>
+                            <option value="Destroyer">驱逐舰</option>
+                            <option value="Carrier">航空母舰</option>
+                            <option value="custom">自定义</option>
+                        </select>
+                        <input type="text" id="shipClassCustom" placeholder="自定义类型" style="display: none;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="shipLevel">等级</label>
+                    <input type="number" id="shipLevel" value="10" min="1" max="20">
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3>船只尺寸</h3>
+                <div class="form-group">
+                    <label for="shipLength">长度 (米)</label>
+                    <input type="number" id="shipLength" value="270.4" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label for="shipWidth">宽度 (米)</label>
+                    <input type="number" id="shipWidth" value="32.74" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label for="shipDraft">吃水深度 (米)</label>
+                    <input type="number" id="shipDraft" value="12" step="0.1">
+                </div>
+            </div>
+            
+            <!-- 新增：图片尺寸控制面板 -->
+            <div class="panel" id="imageControlPanel" style="display: none;">
+                <h3>图片尺寸控制</h3>
+                
+                <div class="dimension-info" id="dimensionInfo">
+                    <div class="file-dim">文件尺寸: <span id="fileDimensions">-</span> 像素</div>
+                    <div class="content-dim">内容尺寸: <span id="contentDimensions">-</span> 像素</div>
+                    <div>内容中心偏移: <span id="contentOffset">(0, 0)</span> 像素</div>
+                    <div>透明区域占比: <span id="transparencyRatio">-</span>%</div>
+                </div>
+                
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" id="mapWholeImage" name="mappingMode" value="whole" checked>
+                        <label for="mapWholeImage">映射整个文件尺寸</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="mapContentOnly" name="mappingMode" value="content">
+                        <label for="mapContentOnly">仅映射内容区域</label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="imageLength">图片代表长度 (米)</label>
+                    <input type="number" id="imageLength" value="270.4" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label for="imageWidth">图片代表宽度 (米)</label>
+                    <input type="number" id="imageWidth" value="32.74" step="0.1">
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="lockAspectRatio" checked>
+                    <label for="lockAspectRatio">保持宽高比</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="autoFitImage" checked>
+                    <label for="autoFitImage">自动适应坐标系</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="centerImage" checked>
+                    <label for="centerImage">图片居中(中心为原点)</label>
+                </div>
+                
+                <!-- 新增：检测控制 -->
+                <div class="detection-controls">
+                    <h4>检测设置</h4>
+                    <div>
+                        <label for="sensitivitySlider">检测灵敏度: <span id="sensitivityValue">30</span></label>
+                        <input type="range" id="sensitivitySlider" class="sensitivity-slider" min="0" max="255" value="30">
+                        <div class="sensitivity-value">(值越小越敏感)</div>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="detectEdges" checked>
+                        <label for="detectEdges">检测边缘透明像素</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="autoCenterContent" checked>
+                        <label for="autoCenterContent">自动将内容中心对齐到原点</label>
+                    </div>
+                </div>
+                
+                <div class="center-controls">
+                    <button class="tool-btn" id="centerToOriginBtn" style="flex: 1;">中心对齐到原点</button>
+                    <button class="tool-btn" id="showContentBoundsBtn" style="flex: 1;">显示内容边界</button>
+                </div>
+                
+                <button class="tool-btn" id="autoDetectBtn" style="width: 100%; margin-top: 5px;">自动检测内容边界</button>
+                <button class="tool-btn" id="resetImageSizeBtn" style="width: 100%; margin-top: 10px;">重置图片尺寸</button>
+            </div>
+            
+            <div class="panel">
+                <h3>模块管理</h3>
+                <div class="module-type-tabs">
+                    <div class="module-type-tab active" data-type="armament">武器</div>
+                    <div class="module-type-tab" data-type="turret">炮塔</div>
+                </div>
+                
+                <div class="module-list" id="moduleList">
+                    <!-- 模块列表将通过JavaScript动态生成 -->
+                </div>
+                <button class="tool-btn" id="addModuleBtn" style="width: 100%; margin-top: 10px;">添加模块</button>
+                
+                <div class="module-editor hidden" id="moduleEditor">
+                    <h4 id="editorTitle">编辑模块</h4>
+                    
+                    <!-- 武器编辑器 -->
+                    <div id="armamentEditor">
+                        <div class="form-group">
+                            <label for="weaponName">武器名称</label>
+                            <input type="text" id="weaponName" value="Tomahawk">
+                        </div>
+                        <div class="form-group">
+                            <label for="weaponForward">前向位置</label>
+                            <input type="number" id="weaponForward" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="weaponSide">侧向位置</label>
+                            <input type="number" id="weaponSide" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="weaponAngle">角度</label>
+                            <input type="number" id="weaponAngle" value="-90" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="weaponCount">数量</label>
+                            <input type="number" id="weaponCount" value="2" min="1" step="1">
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="weaponSymmetrical">
+                            <label for="weaponSymmetrical">对称</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="weaponHidden">
+                            <label for="weaponHidden">隐藏</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="weaponExternal">
+                            <label for="weaponExternal">外部</label>
+                        </div>
+                    </div>
+                    
+                    <!-- 炮塔编辑器 -->
+                    <div id="turretEditor" class="hidden">
+                        <div class="form-group">
+                            <label for="turretName">炮塔名称</label>
+                            <input type="text" id="turretName" value="Mark7">
+                        </div>
+                        <div class="form-group">
+                            <label for="turretForward">前向位置</label>
+                            <input type="number" id="turretForward" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="turretSide">侧向位置</label>
+                            <input type="number" id="turretSide" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="turretAngle">角度</label>
+                            <input type="number" id="turretAngle" value="0" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="turretSpeed">转速</label>
+                            <select id="turretSpeed">
+                                <option value="slow">慢速</option>
+                                <option value="medium">中速</option>
+                                <option value="fast">快速</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="turretAzimuthB">方位角B</label>
+                            <input type="number" id="turretAzimuthB" value="20" step="1">
+                        </div>
+                    </div>
+                    
+                    <button class="tool-btn" id="saveModuleBtn" style="width: 100%; margin-top: 10px;">保存修改</button>
+                    <button class="tool-btn" id="deleteModuleBtn" style="width: 100%; margin-top: 5px; background-color: #c42b1c;">删除模块</button>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3>生成代码</h3>
+                <button class="tool-btn" id="generateCodeBtn" style="width: 100%; margin-bottom: 10px;">生成船只代码</button>
+                <div class="code-output" id="codeOutput">
+                    // 生成的代码将显示在这里
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="toolbar">
+                <button class="tool-btn" id="importImageBtn">导入图片</button>
+                <button class="tool-btn active" id="addArmamentBtn">添加武器</button>
+                <button class="tool-btn" id="addTurretBtn">添加炮塔</button>
+                <button class="tool-btn" id="clearAllBtn">清除所有</button>
+                <div style="flex: 1;"></div>
+                <!-- 新增：图片固定按钮 -->
+                <button class="tool-btn" id="lockImageBtn">🔓 解锁图片</button>
+                <button class="tool-btn" id="imageScaleUpBtn">放大图片</button>
+                <button class="tool-btn" id="imageScaleDownBtn">缩小图片</button>
+                <button class="tool-btn" id="imageResetBtn">重置图片</button>
+            </div>
+            
+            <div class="canvas-container">
+                <!-- 修改层级顺序：图片在最底层 -->
+                <img id="shipImage" class="ship-image" style="display: none;" crossorigin="anonymous">
+                <canvas id="coordinateSystem"></canvas>
+                <!-- 武器装备点位通过Canvas绘制，位于最上层 -->
+                <div id="infoPanel" class="info-panel">缩放: 1.00x | 坐标: (0, 0)</div>
+                <div class="control-panel">
+                    <button class="control-btn" id="zoomIn">+</button>
+                    <button class="control-btn" id="zoomOut">-</button>
+                    <button class="control-btn" id="resetView">↺</button>
+                </div>
+                
+                <!-- 加载遮罩 - 初始状态就是隐藏的 -->
+                <div id="loadingOverlay" class="loading-overlay hidden">
+                    <div class="loading-spinner"></div>
+                    <div>正在分析图片内容...</div>
+                    <div id="loadingProgress" style="font-size: 12px; margin-top: 5px;">0%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 等待DOM完全加载后再执行
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取Canvas元素和上下文
+            const canvas = document.getElementById('coordinateSystem');
+            if (!canvas) {
+                console.error('无法找到canvas元素');
+                return;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            const infoPanel = document.getElementById('infoPanel');
+            const shipImage = document.getElementById('shipImage');
+            const moduleList = document.getElementById('moduleList');
+            const codeOutput = document.getElementById('codeOutput');
+            const moduleEditor = document.getElementById('moduleEditor');
+            const armamentEditor = document.getElementById('armamentEditor');
+            const turretEditor = document.getElementById('turretEditor');
+            const editorTitle = document.getElementById('editorTitle');
+            const imageControlPanel = document.getElementById('imageControlPanel');
+            const shipClassSelect = document.getElementById('shipClass');
+            const shipClassCustom = document.getElementById('shipClassCustom');
+            const lockImageBtn = document.getElementById('lockImageBtn');
+            const imageResetBtn = document.getElementById('imageResetBtn');
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const loadingProgress = document.getElementById('loadingProgress');
+            const autoDetectBtn = document.getElementById('autoDetectBtn');
+            const fileDimensions = document.getElementById('fileDimensions');
+            const contentDimensions = document.getElementById('contentDimensions');
+            const transparencyRatio = document.getElementById('transparencyRatio');
+            const sensitivitySlider = document.getElementById('sensitivitySlider');
+            const sensitivityValue = document.getElementById('sensitivityValue');
+            const detectEdges = document.getElementById('detectEdges');
+            const autoCenterContent = document.getElementById('autoCenterContent');
+            const centerToOriginBtn = document.getElementById('centerToOriginBtn');
+            const showContentBoundsBtn = document.getElementById('showContentBoundsBtn');
+            const contentOffset = document.getElementById('contentOffset');
+
+            // 检查所有必要的元素是否存在
+            if (!ctx || !infoPanel || !shipImage || !moduleList || !codeOutput) {
+                console.error('无法找到必要的DOM元素');
+                return;
+            }
+
+            // 坐标系配置
+            const config = {
+                scale: 50, // 缩放级别（像素/单位）
+                offsetX: 0, // X轴偏移
+                offsetY: 0, // Y轴偏移
+                modules: [], // 存储所有模块
+                isDragging: false,
+                lastX: 0,
+                lastY: 0,
+                gridSize: 1, // 网格大小
+                selectedModule: null, // 当前选中的模块
+                
+                // 图片相关配置
+                hasImage: false,
+                imageScale: 1.0, // 图片缩放比例（相对于原始图片）
+                imageOffsetX: 0, // 图片X轴偏移（像素）
+                imageOffsetY: 0, // 图片Y轴偏移（像素）
+                isImageDragging: false,
+                lastImageX: 0,
+                lastImageY: 0,
+                imageLocked: false, // 新增：图片是否被锁定
+                
+                // 图片尺寸映射
+                imageLength: 270.4, // 图片代表的实际长度（米）
+                imageWidth: 32.74,  // 图片代表的实际宽度（米）
+                imageOriginalWidth: 0, // 图片原始宽度（像素）
+                imageOriginalHeight: 0, // 图片原始高度（像素）
+                lockAspectRatio: true, // 是否锁定宽高比
+                autoFitImage: true, // 是否自动适应坐标系
+                centerImage: true, // 图片是否居中（中心为原点）
+                
+                // 新增：内容边界检测
+                mappingMode: 'whole', // 'whole' 或 'content'
+                contentBounds: null, // 内容边界信息
+                fileBounds: null, // 文件边界信息
+                
+                // 检测配置
+                detectionSensitivity: 30, // 检测灵敏度（alpha阈值）
+                detectEdgePixels: true, // 是否检测边缘透明像素
+                autoCenterContent: true, // 是否自动将内容中心对齐到原点
+                
+                // 视觉辅助
+                showContentBounds: false, // 是否显示内容边界框
+                
+                currentModuleType: 'armament' // 当前添加的模块类型
+            };
+
+            // 灵敏度滑块事件
+            if (sensitivitySlider && sensitivityValue) {
+                sensitivitySlider.addEventListener('input', function() {
+                    config.detectionSensitivity = parseInt(this.value);
+                    sensitivityValue.textContent = config.detectionSensitivity;
+                });
+            }
+
+            // 边缘检测复选框事件
+            if (detectEdges) {
+                detectEdges.addEventListener('change', function() {
+                    config.detectEdgePixels = this.checked;
+                });
+            }
+
+            // 自动居中复选框事件
+            if (autoCenterContent) {
+                autoCenterContent.addEventListener('change', function() {
+                    config.autoCenterContent = this.checked;
+                });
+            }
+
+            // 中心对齐到原点按钮事件
+            if (centerToOriginBtn) {
+                centerToOriginBtn.addEventListener('click', centerContentToOrigin);
+            }
+
+            // 显示内容边界按钮事件
+            if (showContentBoundsBtn) {
+                showContentBoundsBtn.addEventListener('click', function() {
+                    config.showContentBounds = !config.showContentBounds;
+                    this.textContent = config.showContentBounds ? '隐藏内容边界' : '显示内容边界';
+                    drawCoordinateSystem();
+                });
+            }
+
+            // 船只类型选择事件
+            if (shipClassSelect) {
+                shipClassSelect.addEventListener('change', function() {
+                    if (this.value === 'custom') {
+                        if (shipClassCustom) shipClassCustom.style.display = 'block';
+                        if (shipClassCustom) shipClassCustom.value = '';
+                    } else {
+                        if (shipClassCustom) shipClassCustom.style.display = 'none';
+                        if (shipClassCustom) shipClassCustom.value = '';
+                    }
+                });
+            }
+
+            // 图片锁定/解锁按钮事件
+            if (lockImageBtn) {
+                lockImageBtn.addEventListener('click', function() {
+                    config.imageLocked = !config.imageLocked;
+                    if (config.imageLocked) {
+                        this.innerHTML = '🔒 锁定图片';
+                        this.classList.add('locked');
+                        // 如果正在拖拽图片，立即停止
+                        config.isImageDragging = false;
+                        // 设置图片不可点击
+                        shipImage.style.pointerEvents = 'none';
+                    } else {
+                        this.innerHTML = '🔓 解锁图片';
+                        this.classList.remove('locked');
+                        // 设置图片可点击
+                        shipImage.style.pointerEvents = 'auto';
+                    }
+                });
+            }
+
+            // 映射模式切换事件
+            document.querySelectorAll('input[name="mappingMode"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    config.mappingMode = this.value;
+                    if (config.hasImage) {
+                        updateImageSizeFromMode();
+                        calculateImageDisplaySize();
+                        updateImagePosition();
+                        
+                        // 如果切换到内容模式且开启了自动居中，进行居中操作
+                        if (config.mappingMode === 'content' && config.contentBounds && config.autoCenterContent) {
+                            centerContentToOrigin();
+                        }
+                    }
+                });
+            });
+
+            // 自动检测内容边界 - 修复事件处理
+            if (autoDetectBtn) {
+                autoDetectBtn.addEventListener('click', function() {
+                    if (!config.hasImage) {
+                        alert('请先导入图片');
+                        return;
+                    }
+                    
+                    // 检查图片是否完全加载
+                    if (!config.imageOriginalWidth || !config.imageOriginalHeight) {
+                        alert('图片尚未完全加载，请稍后再试');
+                        return;
+                    }
+                    
+                    // 禁用按钮防止重复点击
+                    this.disabled = true;
+                    this.textContent = '分析中...';
+                    
+                    detectContentBounds().finally(() => {
+                        // 重新启用按钮
+                        this.disabled = false;
+                        this.textContent = '自动检测内容边界';
+                    });
+                });
+            }
+
+            // 将内容中心对齐到原点
+            function centerContentToOrigin() {
+                if (!config.hasImage || !config.contentBounds) {
+                    alert('请先检测图片内容边界');
+                    return;
+                }
+                
+                // 计算内容区域的中心点相对于文件中心的偏移
+                const contentCenterX = config.contentBounds.minX + config.contentBounds.width / 2;
+                const contentCenterY = config.contentBounds.minY + config.contentBounds.height / 2;
+                
+                const fileCenterX = config.imageOriginalWidth / 2;
+                const fileCenterY = config.imageOriginalHeight / 2;
+                
+                // 计算偏移量，使内容中心对齐到原点
+                const offsetX = fileCenterX - contentCenterX;
+                const offsetY = fileCenterY - contentCenterY;
+                
+                // 保存偏移量到内容边界信息
+                config.contentBounds.centerOffsetX = offsetX;
+                config.contentBounds.centerOffsetY = offsetY;
+                
+                // 计算相对于原点的偏移（用于显示）
+                const relativeOffsetX = contentCenterX - fileCenterX;
+                const relativeOffsetY = contentCenterY - fileCenterY;
+                
+                // 更新显示信息
+                if (contentOffset) {
+                    contentOffset.textContent = `(${Math.round(relativeOffsetX)}, ${Math.round(relativeOffsetY)})`;
+                }
+                
+                // 如果开启了自动居中，调整图片偏移
+                if (config.autoCenterContent) {
+                    // 应用偏移量到图片显示
+                    config.imageOffsetX += offsetX * config.imageScale;
+                    config.imageOffsetY += offsetY * config.imageScale;
+                    
+                    updateImagePosition();
+                    drawCoordinateSystem();
+                    
+                    console.log('内容已居中到原点', {
+                        contentCenter: {x: contentCenterX, y: contentCenterY},
+                        fileCenter: {x: fileCenterX, y: fileCenterY},
+                        offset: {x: offsetX, y: offsetY}
+                    });
+                    
+                    alert(`内容已居中到原点\n偏移量: (${Math.round(relativeOffsetX)}, ${Math.round(relativeOffsetY)})像素`);
+                }
+            }
+
+            // 检测图片内容边界 - 改进版本
+            async function detectContentBounds() {
+                if (!config.hasImage || !config.imageOriginalWidth || !config.imageOriginalHeight) {
+                    alert('图片信息不完整');
+                    return;
+                }
+                
+                console.log('开始分析图片内容边界...');
+                
+                // 显示加载遮罩
+                if (loadingOverlay) loadingOverlay.classList.remove('hidden');
+                if (loadingProgress) loadingProgress.textContent = '0%';
+                
+                try {
+                    // 创建临时canvas来分析图片
+                    const tempCanvas = document.createElement('canvas');
+                    const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+                    
+                    // 设置临时canvas尺寸
+                    const maxSize = 800; // 最大分析尺寸，提高性能
+                    let scale = 1;
+                    
+                    if (config.imageOriginalWidth > maxSize || config.imageOriginalHeight > maxSize) {
+                        scale = maxSize / Math.max(config.imageOriginalWidth, config.imageOriginalHeight);
+                    }
+                    
+                    const analysisWidth = Math.floor(config.imageOriginalWidth * scale);
+                    const analysisHeight = Math.floor(config.imageOriginalHeight * scale);
+                    
+                    console.log(`分析尺寸: ${analysisWidth}x${analysisHeight} (缩放比例: ${scale.toFixed(2)})`);
+                    
+                    tempCanvas.width = analysisWidth;
+                    tempCanvas.height = analysisHeight;
+                    
+                    // 清除canvas
+                    tempCtx.clearRect(0, 0, analysisWidth, analysisHeight);
+                    
+                    // 绘制图片
+                    tempCtx.drawImage(shipImage, 0, 0, analysisWidth, analysisHeight);
+                    
+                    console.log('图片绘制成功');
+                    
+                    // 获取像素数据
+                    const imageData = tempCtx.getImageData(0, 0, analysisWidth, analysisHeight);
+                    const data = imageData.data;
+                    const totalPixels = analysisWidth * analysisHeight;
+                    
+                    console.log(`开始分析 ${totalPixels} 个像素...`);
+                    
+                    // 初始化边界值
+                    let minX = analysisWidth;
+                    let minY = analysisHeight;
+                    let maxX = 0;
+                    let maxY = 0;
+                    let opaquePixels = 0;
+                    
+                    // 使用更高效的分析方法 - 改进版本
+                    const batchSize = 50000; // 每批处理的像素数
+                    const batchCount = Math.ceil(totalPixels / batchSize);
+                    
+                    // 创建透明度阈值数组，用于快速判断
+                    const alphaThreshold = config.detectionSensitivity;
+                    
+                    for (let batch = 0; batch < batchCount; batch++) {
+                        const startPixel = batch * batchSize;
+                        const endPixel = Math.min(startPixel + batchSize, totalPixels);
+                        
+                        for (let pixel = startPixel; pixel < endPixel; pixel++) {
+                            const pixelIndex = pixel * 4;
+                            const alpha = data[pixelIndex + 3];
+                            
+                            // 检测不透明像素（使用可配置的阈值）
+                            if (alpha > alphaThreshold) {
+                                opaquePixels++;
+                                
+                                const x = pixel % analysisWidth;
+                                const y = Math.floor(pixel / analysisWidth);
+                                
+                                if (x < minX) minX = x;
+                                if (x > maxX) maxX = x;
+                                if (y < minY) minY = y;
+                                if (y > maxY) maxY = y;
+                            }
+                        }
+                        
+                        // 更新进度
+                        const percent = Math.round(((batch + 1) / batchCount) * 100);
+                        if (loadingProgress) loadingProgress.textContent = percent + '%';
+                        
+                        // 每处理一批让UI更新一次
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
+                    
+                    // 如果启用了边缘检测，进行第二轮扫描以去除边缘透明像素
+                    if (config.detectEdgePixels && minX < maxX && minY < maxY) {
+                        console.log('开始边缘检测...');
+                        
+                        // 创建一个二维数组来标记有效像素
+                        const width = analysisWidth;
+                        const height = analysisHeight;
+                        const visited = new Array(width * height).fill(false);
+                        const valid = new Array(width * height).fill(false);
+                        
+                        // 初始种子：所有不透明像素
+                        for (let i = 0; i < totalPixels; i++) {
+                            const pixelIndex = i * 4;
+                            if (data[pixelIndex + 3] > alphaThreshold) {
+                                valid[i] = true;
+                            }
+                        }
+                        
+                        // 洪水填充算法去除孤立区域
+                        const queue = [];
+                        
+                        // 从边界开始填充
+                        for (let x = 0; x < width; x++) {
+                            for (let y of [0, height - 1]) {
+                                const index = y * width + x;
+                                if (valid[index] && !visited[index]) {
+                                    queue.push({x, y});
+                                    visited[index] = true;
+                                    valid[index] = false; // 边缘标记为无效
+                                }
+                            }
+                        }
+                        
+                        for (let y = 0; y < height; y++) {
+                            for (let x of [0, width - 1]) {
+                                const index = y * width + x;
+                                if (valid[index] && !visited[index]) {
+                                    queue.push({x, y});
+                                    visited[index] = true;
+                                    valid[index] = false; // 边缘标记为无效
+                                }
+                            }
+                        }
+                        
+                        // BFS洪水填充
+                        while (queue.length > 0) {
+                            const {x, y} = queue.shift();
+                            
+                            // 检查四个方向
+                            const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                            for (const [dx, dy] of directions) {
+                                const nx = x + dx;
+                                const ny = y + dy;
+                                
+                                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                                    const nIndex = ny * width + nx;
+                                    if (valid[nIndex] && !visited[nIndex]) {
+                                        visited[nIndex] = true;
+                                        valid[nIndex] = false; // 连接边缘的标记为无效
+                                        queue.push({x: nx, y: ny});
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // 重新计算边界和计数
+                        minX = width;
+                        minY = height;
+                        maxX = 0;
+                        maxY = 0;
+                        opaquePixels = 0;
+                        
+                        for (let i = 0; i < totalPixels; i++) {
+                            if (valid[i]) {
+                                opaquePixels++;
+                                
+                                const x = i % width;
+                                const y = Math.floor(i / width);
+                                
+                                if (x < minX) minX = x;
+                                if (x > maxX) maxX = x;
+                                if (y < minY) minY = y;
+                                if (y > maxY) maxY = y;
+                            }
+                        }
+                        
+                        console.log('边缘检测完成，剩余不透明像素:', opaquePixels);
+                    }
+                    
+                    // 分析完成
+                    console.log('分析完成');
+                    console.log(`找到 ${opaquePixels} 个不透明像素`);
+                    console.log(`内容边界: x[${minX}, ${maxX}], y[${minY}, ${maxY}]`);
+                    
+                    // 如果没有找到不透明像素，使用整个图片
+                    if (minX > maxX || minY > maxY || opaquePixels === 0) {
+                        console.log('未检测到不透明内容，使用整个图片');
+                        minX = 0;
+                        minY = 0;
+                        maxX = analysisWidth - 1;
+                        maxY = analysisHeight - 1;
+                        opaquePixels = totalPixels;
+                    }
+                    
+                    // 计算内容边界（缩放到原始尺寸）
+                    const contentWidth = (maxX - minX + 1) / scale;
+                    const contentHeight = (maxY - minY + 1) / scale;
+                    const contentMinX = minX / scale;
+                    const contentMinY = minY / scale;
+                    const contentMaxX = maxX / scale;
+                    const contentMaxY = maxY / scale;
+                    
+                    // 计算内容中心
+                    const contentCenterX = contentMinX + contentWidth / 2;
+                    const contentCenterY = contentMinY + contentHeight / 2;
+                    const fileCenterX = config.imageOriginalWidth / 2;
+                    const fileCenterY = config.imageOriginalHeight / 2;
+                    
+                    // 计算中心偏移
+                    const centerOffsetX = contentCenterX - fileCenterX;
+                    const centerOffsetY = contentCenterY - fileCenterY;
+                    
+                    // 保存边界信息
+                    config.contentBounds = {
+                        width: contentWidth,
+                        height: contentHeight,
+                        minX: contentMinX,
+                        minY: contentMinY,
+                        maxX: contentMaxX,
+                        maxY: contentMaxY,
+                        centerX: contentCenterX,
+                        centerY: contentCenterY,
+                        centerOffsetX: centerOffsetX,
+                        centerOffsetY: centerOffsetY
+                    };
+                    
+                    config.fileBounds = {
+                        width: config.imageOriginalWidth,
+                        height: config.imageOriginalHeight
+                    };
+                    
+                    // 更新显示信息
+                    updateDimensionInfo();
+                    
+                    // 如果当前是内容映射模式，更新尺寸
+                    if (config.mappingMode === 'content') {
+                        updateImageSizeFromMode();
+                        calculateImageDisplaySize();
+                        updateImagePosition();
+                    }
+                    
+                    // 计算透明区域比例
+                    const fileArea = config.imageOriginalWidth * config.imageOriginalHeight;
+                    const contentArea = config.contentBounds.width * config.contentBounds.height;
+                    const transparencyPercent = ((1 - opaquePixels / totalPixels) * 100).toFixed(1);
+                    const transparencyAreaPercent = ((fileArea - contentArea) / fileArea * 100).toFixed(1);
+                    
+                    // 如果开启了自动居中，执行居中操作
+                    if (config.autoCenterContent && config.mappingMode === 'content') {
+                        // 延迟执行，确保UI更新完成
+                        setTimeout(() => {
+                            centerContentToOrigin();
+                        }, 100);
+                    }
+                    
+                    // 显示完成消息
+                    const message = `✅ 内容边界检测完成！\n` +
+                                   `文件尺寸: ${config.imageOriginalWidth}×${config.imageOriginalHeight}像素\n` +
+                                   `内容尺寸: ${Math.round(contentWidth)}×${Math.round(contentHeight)}像素\n` +
+                                   `内容中心偏移: (${Math.round(centerOffsetX)}, ${Math.round(centerOffsetY)})像素\n` +
+                                   `像素透明度: ${transparencyPercent}%\n` +
+                                   `区域透明度: ${transparencyAreaPercent}%\n\n` +
+                                   `建议使用"仅映射内容区域"模式获得更精确的坐标映射。\n` +
+                                   `点击"中心对齐到原点"按钮将内容中心对齐到坐标系原点。`;
+                    
+                    // 设置最终进度为100%
+                    if (loadingProgress) loadingProgress.textContent = '100%';
+                    
+                    // 延迟500ms让用户看到100%进度，然后隐藏遮罩并显示结果
+                    setTimeout(() => {
+                        // 隐藏加载遮罩
+                        if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                        
+                        alert(message);
+                        console.log(message);
+                    }, 500);
+                    
+                } catch (error) {
+                    console.error('分析图片内容时出错:', error);
+                    
+                    // 隐藏加载遮罩
+                    if (loadingOverlay) loadingOverlay.classList.add('hidden');
+                    if (loadingProgress) loadingProgress.textContent = '0%';
+                    
+                    alert('分析图片内容时出错: ' + error.message);
+                }
+            }
+
+            // 更新尺寸信息显示
+            function updateDimensionInfo() {
+                if (!config.hasImage) return;
+                
+                // 文件尺寸总是可以显示
+                if (fileDimensions) {
+                    fileDimensions.textContent = `${config.imageOriginalWidth}×${config.imageOriginalHeight}`;
+                }
+                
+                // 内容尺寸
+                if (contentDimensions && transparencyRatio && contentOffset) {
+                    if (config.contentBounds) {
+                        contentDimensions.textContent = `${Math.round(config.contentBounds.width)}×${Math.round(config.contentBounds.height)}`;
+                        
+                        // 计算透明区域比例
+                        const fileArea = config.imageOriginalWidth * config.imageOriginalHeight;
+                        const contentArea = config.contentBounds.width * config.contentBounds.height;
+                        const transparency = ((fileArea - contentArea) / fileArea * 100).toFixed(1);
+                        transparencyRatio.textContent = transparency;
+                        
+                        // 显示中心偏移
+                        contentOffset.textContent = `(${Math.round(config.contentBounds.centerOffsetX)}, ${Math.round(config.contentBounds.centerOffsetY)})`;
+                    } else {
+                        contentDimensions.textContent = '未检测';
+                        transparencyRatio.textContent = '未知';
+                        contentOffset.textContent = '(0, 0)';
+                    }
+                }
+            }
+
+            // 根据映射模式更新图片尺寸
+            function updateImageSizeFromMode() {
+                if (!config.hasImage) return;
+                
+                if (config.mappingMode === 'content' && config.contentBounds) {
+                    // 使用内容区域尺寸
+                    const contentAspectRatio = config.contentBounds.width / config.contentBounds.height;
+                    const shipLength = parseFloat(document.getElementById('shipLength').value);
+                    const shipWidth = parseFloat(document.getElementById('shipWidth').value);
+                    
+                    if (contentAspectRatio > 1) {
+                        // 内容宽度 > 高度，以长度为准
+                        config.imageLength = shipLength;
+                        config.imageWidth = shipLength / contentAspectRatio;
+                    } else {
+                        // 内容高度 >= 宽度，以宽度为准
+                        config.imageWidth = shipWidth;
+                        config.imageLength = shipWidth * contentAspectRatio;
+                    }
+                } else {
+                    // 使用整个文件尺寸
+                    const fileAspectRatio = config.imageOriginalWidth / config.imageOriginalHeight;
+                    const shipLength = parseFloat(document.getElementById('shipLength').value);
+                    const shipWidth = parseFloat(document.getElementById('shipWidth').value);
+                    
+                    if (fileAspectRatio > 1) {
+                        // 文件宽度 > 高度，以长度为准
+                        config.imageLength = shipLength;
+                        config.imageWidth = shipLength / fileAspectRatio;
+                    } else {
+                        // 文件高度 >= 宽度，以宽度为准
+                        config.imageWidth = shipWidth;
+                        config.imageLength = shipWidth * fileAspectRatio;
+                    }
+                }
+                
+                // 更新UI
+                const imageLengthInput = document.getElementById('imageLength');
+                const imageWidthInput = document.getElementById('imageWidth');
+                if (imageLengthInput) imageLengthInput.value = config.imageLength.toFixed(1);
+                if (imageWidthInput) imageWidthInput.value = config.imageWidth.toFixed(1);
+            }
+
+            // 调整Canvas大小以适应窗口
+            function resizeCanvas() {
+                canvas.width = canvas.parentElement.clientWidth;
+                canvas.height = canvas.parentElement.clientHeight;
+                drawCoordinateSystem();
+                updateImagePosition();
+            }
+
+            // 绘制坐标系
+            function drawCoordinateSystem() {
+                // 清除画布
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                const centerX = canvas.width / 2 + config.offsetX;
+                const centerY = canvas.height / 2 + config.offsetY;
+                
+                // 绘制网格
+                ctx.strokeStyle = 'rgba(100, 100, 100, 0.2)';
+                ctx.lineWidth = 1;
+                
+                // 垂直线
+                for (let x = centerX % (config.scale * config.gridSize); x < canvas.width; x += config.scale * config.gridSize) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, canvas.height);
+                    ctx.stroke();
+                }
+                
+                // 水平线
+                for (let y = centerY % (config.scale * config.gridSize); y < canvas.height; y += config.scale * config.gridSize) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(canvas.width, y);
+                    ctx.stroke();
+                }
+                
+                // 绘制坐标轴
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                
+                // X轴
+                ctx.beginPath();
+                ctx.moveTo(0, centerY);
+                ctx.lineTo(canvas.width, centerY);
+                ctx.stroke();
+                
+                // Y轴
+                ctx.beginPath();
+                ctx.moveTo(centerX, 0);
+                ctx.lineTo(centerX, canvas.height);
+                ctx.stroke();
+                
+                // 绘制箭头
+                // X轴箭头
+                ctx.beginPath();
+                ctx.moveTo(canvas.width - 10, centerY - 5);
+                ctx.lineTo(canvas.width, centerY);
+                ctx.lineTo(canvas.width - 10, centerY + 5);
+                ctx.stroke();
+                
+                // Y轴箭头
+                ctx.beginPath();
+                ctx.moveTo(centerX - 5, 10);
+                ctx.lineTo(centerX, 0);
+                ctx.lineTo(centerX + 5, 10);
+                ctx.stroke();
+                
+                // 绘制刻度
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                // X轴刻度
+                for (let x = centerX % config.scale; x < canvas.width; x += config.scale) {
+                    const value = Math.round((x - centerX) / config.scale);
+                    if (value !== 0) {
+                        ctx.beginPath();
+                        ctx.moveTo(x, centerY - 5);
+                        ctx.lineTo(x, centerY + 5);
+                        ctx.stroke();
+                        
+                        ctx.fillText(value.toString(), x, centerY + 15);
+                    }
+                }
+                
+                // Y轴刻度
+                for (let y = centerY % config.scale; y < canvas.height; y += config.scale) {
+                    const value = Math.round((centerY - y) / config.scale);
+                    if (value !== 0) {
+                        ctx.beginPath();
+                        ctx.moveTo(centerX - 5, y);
+                        ctx.lineTo(centerX + 5, y);
+                        ctx.stroke();
+                        
+                        ctx.fillText(value.toString(), centerX - 15, y);
+                    }
+                }
+                
+                // 绘制原点
+                ctx.fillStyle = 'white';
+                ctx.font = '14px Arial';
+                ctx.fillText('O', centerX - 10, centerY + 15);
+                
+                // 绘制内容边界框（如果开启了显示）
+                if (config.hasImage && config.contentBounds && config.showContentBounds) {
+                    drawContentBounds();
+                }
+                
+                // 绘制所有模块（武器装备点位）
+                drawModules();
+            }
+
+            // 绘制内容边界框
+            function drawContentBounds() {
+                if (!config.contentBounds) return;
+                
+                const centerX = canvas.width / 2 + config.offsetX;
+                const centerY = canvas.height / 2 + config.offsetY;
+                
+                // 计算边界框在Canvas上的位置
+                const boundsWidth = config.contentBounds.width * config.imageScale;
+                const boundsHeight = config.contentBounds.height * config.imageScale;
+                
+                // 计算边界框左上角位置
+                const boundsX = centerX - boundsWidth / 2 + config.imageOffsetX;
+                const boundsY = centerY - boundsHeight / 2 + config.imageOffsetY;
+                
+                // 绘制红色边界框
+                ctx.strokeStyle = '#ff4757';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                
+                ctx.beginPath();
+                ctx.rect(boundsX, boundsY, boundsWidth, boundsHeight);
+                ctx.stroke();
+                
+                // 重置线条样式
+                ctx.setLineDash([]);
+                
+                // 绘制中心点
+                ctx.fillStyle = '#ff4757';
+                ctx.beginPath();
+                ctx.arc(boundsX + boundsWidth / 2, boundsY + boundsHeight / 2, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 绘制标签
+                ctx.fillStyle = '#ff4757';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                ctx.fillText('内容边界', boundsX, boundsY - 15);
+            }
+
+            // 绘制所有模块（武器装备点位）
+            function drawModules() {
+                const centerX = canvas.width / 2 + config.offsetX;
+                const centerY = canvas.height / 2 + config.offsetY;
+                
+                config.modules.forEach((module, index) => {
+                    const x = centerX + module.forward * config.scale;
+                    const y = centerY - module.side * config.scale;
+                    
+                    // 设置颜色和标签
+                    let color, label;
+                    if (module.type === 'armament') {
+                        color = module === config.selectedModule ? '#ffa502' : '#ff4757';
+                        label = `${module.name}: (${module.forward.toFixed(1)}, ${module.side.toFixed(1)})`;
+                    } else if (module.type === 'turret') {
+                        color = module === config.selectedModule ? '#7bed9f' : '#2ed573';
+                        label = `${module.name}: (${module.forward.toFixed(1)}, ${module.side.toFixed(1)})`;
+                    }
+                    
+                    // 绘制模块点
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // 绘制模块标签
+                    ctx.fillStyle = color;
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'bottom';
+                    
+                    ctx.fillText(label, x + 8, y - 8);
+                    
+                    // 如果是对称模块，绘制对称点
+                    if (module.symmetrical && module.side !== 0) {
+                        const symY = centerY + module.side * config.scale;
+                        
+                        ctx.fillStyle = color;
+                        ctx.beginPath();
+                        ctx.arc(x, symY, 6, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        ctx.fillText(label + ' (对称)', x + 8, symY - 8);
+                    }
+                });
+            }
+
+            // 将屏幕坐标转换为数学坐标
+            function screenToMath(x, y) {
+                const centerX = canvas.width / 2 + config.offsetX;
+                const centerY = canvas.height / 2 + config.offsetY;
+                
+                return {
+                    forward: (x - centerX) / config.scale,
+                    side: (centerY - y) / config.scale
+                };
+            }
+
+            // 更新信息面板
+            function updateInfoPanel(x, y) {
+                const mathCoords = screenToMath(x, y);
+                const scaleFactor = (config.scale / 50).toFixed(2);
+                
+                let info = `缩放: ${scaleFactor}x | 坐标: (${mathCoords.forward.toFixed(2)}, ${mathCoords.side.toFixed(2)})`;
+                
+                if (config.hasImage) {
+                    info += ` | 图片尺寸: ${config.imageLength.toFixed(1)}×${config.imageWidth.toFixed(1)}米`;
+                    if (config.imageLocked) {
+                        info += ' | 图片已锁定';
+                    }
+                    if (config.mappingMode === 'content' && config.contentBounds) {
+                        info += ' | 内容映射';
+                        if (config.contentBounds.centerOffsetX !== 0 || config.contentBounds.centerOffsetY !== 0) {
+                            info += ` | 偏移: (${Math.round(config.contentBounds.centerOffsetX)}, ${Math.round(config.contentBounds.centerOffsetY)})`;
+                        }
+                    }
+                }
+                
+                infoPanel.textContent = info;
+            }
+
+            // 计算图片应该显示的尺寸（基于坐标系缩放）
+            function calculateImageDisplaySize() {
+                if (!config.hasImage) return;
+                
+                // 如果自动适应模式关闭，保持当前缩放
+                if (!config.autoFitImage) return;
+                
+                // 确定使用的尺寸（根据映射模式）
+                let targetWidth, targetHeight;
+                
+                if (config.mappingMode === 'content' && config.contentBounds) {
+                    // 使用内容区域尺寸
+                    targetWidth = config.imageLength * config.scale;
+                    targetHeight = config.imageWidth * config.scale;
+                } else {
+                    // 使用整个文件尺寸
+                    targetWidth = config.imageLength * config.scale;
+                    targetHeight = config.imageWidth * config.scale;
+                }
+                
+                // 计算缩放比例（相对于原始图片尺寸）
+                const scaleX = targetWidth / config.imageOriginalWidth;
+                const scaleY = targetHeight / config.imageOriginalHeight;
+                
+                // 如果锁定宽高比，使用一致的缩放比例
+                if (config.lockAspectRatio) {
+                    // 使用最小的缩放比例，确保图片完全显示
+                    config.imageScale = Math.min(scaleX, scaleY);
+                } else {
+                    // 不锁定宽高比时，分别计算X和Y的缩放
+                    config.imageScale = 1; // 使用统一的缩放，实际显示时分别处理
+                }
+                
+                // 更新图片控制面板中的数值
+                const imageLengthInput = document.getElementById('imageLength');
+                const imageWidthInput = document.getElementById('imageWidth');
+                if (imageLengthInput) imageLengthInput.value = config.imageLength;
+                if (imageWidthInput) imageWidthInput.value = config.imageWidth;
+            }
+
+            // 更新图片位置和大小
+            function updateImagePosition() {
+                if (!config.hasImage) return;
+                
+                // 计算图片显示尺寸
+                let displayWidth, displayHeight;
+                
+                if (config.autoFitImage) {
+                    // 自动适应模式：基于坐标系缩放计算尺寸
+                    if (config.lockAspectRatio) {
+                        // 锁定宽高比，使用统一的缩放比例
+                        displayWidth = config.imageOriginalWidth * config.imageScale;
+                        displayHeight = config.imageOriginalHeight * config.imageScale;
+                    } else {
+                        // 不锁定宽高比，分别计算
+                        displayWidth = config.imageLength * config.scale;
+                        displayHeight = config.imageWidth * config.scale;
+                    }
+                } else {
+                    // 手动模式：使用当前缩放比例
+                    displayWidth = config.imageOriginalWidth * config.imageScale;
+                    displayHeight = config.imageOriginalHeight * config.imageScale;
+                }
+                
+                shipImage.style.width = displayWidth + 'px';
+                shipImage.style.height = displayHeight + 'px';
+                
+                // 计算图片位置
+                if (config.centerImage) {
+                    // 图片居中：中心为原点(0,0)
+                    const centerX = canvas.width / 2 + config.offsetX;
+                    const centerY = canvas.height / 2 + config.offsetY;
+                    
+                    shipImage.style.left = (centerX - displayWidth / 2 + config.imageOffsetX) + 'px';
+                    shipImage.style.top = (centerY - displayHeight / 2 + config.imageOffsetY) + 'px';
+                } else {
+                    // 图片不居中，使用偏移量
+                    const centerX = canvas.width / 2 + config.offsetX;
+                    const centerY = canvas.height / 2 + config.offsetY;
+                    
+                    shipImage.style.left = (centerX + config.imageOffsetX) + 'px';
+                    shipImage.style.top = (centerY + config.imageOffsetY) + 'px';
+                }
+            }
+
+            // 图片尺寸变化时更新
+            function updateImageSize() {
+                if (!config.hasImage) return;
+                
+                // 获取输入值
+                const newLength = parseFloat(document.getElementById('imageLength').value);
+                const newWidth = parseFloat(document.getElementById('imageWidth').value);
+                
+                // 如果锁定宽高比，调整宽度以保持比例
+                if (config.lockAspectRatio && config.imageOriginalWidth > 0 && config.imageOriginalHeight > 0) {
+                    const aspectRatio = config.imageOriginalWidth / config.imageOriginalHeight;
+                    
+                    if (document.activeElement.id === 'imageLength') {
+                        // 修改了长度，自动计算宽度
+                        config.imageLength = newLength;
+                        config.imageWidth = config.imageLength / aspectRatio;
+                    } else if (document.activeElement.id === 'imageWidth') {
+                        // 修改了宽度，自动计算长度
+                        config.imageWidth = newWidth;
+                        config.imageLength = config.imageWidth * aspectRatio;
+                    }
+                } else {
+                    // 不锁定宽高比，直接设置
+                    config.imageLength = newLength;
+                    config.imageWidth = newWidth;
+                }
+                
+                // 重新计算图片显示尺寸
+                calculateImageDisplaySize();
+                updateImagePosition();
+            }
+
+            // 重置图片位置和大小
+            function resetImage() {
+                if (!config.hasImage) return;
+                
+                // 重置图片缩放比例
+                config.imageScale = 1.0;
+                
+                // 重置图片偏移量，确保图片居中
+                config.imageOffsetX = 0;
+                config.imageOffsetY = 0;
+                
+                // 如果开启自动适应，重新计算尺寸
+                if (config.autoFitImage) {
+                    calculateImageDisplaySize();
+                }
+                
+                // 更新图片位置
+                updateImagePosition();
+                
+                // 确保图片居中
+                if (config.centerImage) {
+                    // 强制重新计算居中位置
+                    const centerX = canvas.width / 2 + config.offsetX;
+                    const centerY = canvas.height / 2 + config.offsetY;
+                    
+                    const displayWidth = parseFloat(shipImage.style.width) || config.imageOriginalWidth * config.imageScale;
+                    const displayHeight = parseFloat(shipImage.style.height) || config.imageOriginalHeight * config.imageScale;
+                    
+                    shipImage.style.left = (centerX - displayWidth / 2) + 'px';
+                    shipImage.style.top = (centerY - displayHeight / 2) + 'px';
+                }
+                
+                console.log('图片已重置，居中到原点');
+            }
+
+            // 添加模块
+            function addModule(forward, side) {
+                let module;
+                
+                if (config.currentModuleType === 'armament') {
+                    module = {
+                        type: 'armament',
+                        name: 'Tomahawk',
+                        forward: forward,
+                        side: side,
+                        angle: -90,
+                        count: 2,
+                        symmetrical: false,
+                        hidden: false,
+                        external: false
+                    };
+                } else if (config.currentModuleType === 'turret') {
+                    module = {
+                        type: 'turret',
+                        name: 'Mark7',
+                        forward: forward,
+                        side: side,
+                        angle: 0,
+                        speed: 'slow',
+                        azimuth_b: 20
+                    };
+                }
+                
+                config.modules.push(module);
+                updateModuleList();
+                drawCoordinateSystem();
+            }
+
+            // 更新模块列表
+            function updateModuleList() {
+                if (!moduleList) return;
+                
+                moduleList.innerHTML = '';
+                
+                if (config.modules.length === 0) {
+                    moduleList.innerHTML = '<div class="module-item">暂无模块</div>';
+                    return;
+                }
+                
+                config.modules.forEach((module, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'module-item';
+                    
+                    let text = `${module.type === 'armament' ? '武器' : '炮塔'} ${index + 1}: ${module.name} (${module.forward.toFixed(1)}, ${module.side.toFixed(1)})`;
+                    if (module.symmetrical) text += ' [对称]';
+                    if (module.hidden) text += ' [隐藏]';
+                    if (module.external) text += ' [外部]';
+                    
+                    item.textContent = text;
+                    item.dataset.index = index;
+                    
+                    item.addEventListener('click', () => {
+                        document.querySelectorAll('.module-item').forEach(el => el.classList.remove('selected'));
+                        item.classList.add('selected');
+                        selectModule(index);
+                    });
+                    
+                    moduleList.appendChild(item);
+                });
+            }
+
+            // 选择模块
+            function selectModule(index) {
+                config.selectedModule = config.modules[index];
+                drawCoordinateSystem();
+                
+                // 显示编辑器并填充数据
+                if (moduleEditor) moduleEditor.classList.remove('hidden');
+                
+                if (config.selectedModule.type === 'armament') {
+                    if (editorTitle) editorTitle.textContent = '编辑武器';
+                    if (armamentEditor) armamentEditor.classList.remove('hidden');
+                    if (turretEditor) turretEditor.classList.add('hidden');
+                    
+                    document.getElementById('weaponName').value = config.selectedModule.name;
+                    document.getElementById('weaponForward').value = config.selectedModule.forward;
+                    document.getElementById('weaponSide').value = config.selectedModule.side;
+                    document.getElementById('weaponAngle').value = config.selectedModule.angle;
+                    document.getElementById('weaponCount').value = config.selectedModule.count;
+                    document.getElementById('weaponSymmetrical').checked = config.selectedModule.symmetrical;
+                    document.getElementById('weaponHidden').checked = config.selectedModule.hidden;
+                    document.getElementById('weaponExternal').checked = config.selectedModule.external;
+                } else if (config.selectedModule.type === 'turret') {
+                    if (editorTitle) editorTitle.textContent = '编辑炮塔';
+                    if (armamentEditor) armamentEditor.classList.add('hidden');
+                    if (turretEditor) turretEditor.classList.remove('hidden');
+                    
+                    document.getElementById('turretName').value = config.selectedModule.name;
+                    document.getElementById('turretForward').value = config.selectedModule.forward;
+                    document.getElementById('turretSide').value = config.selectedModule.side;
+                    document.getElementById('turretAngle').value = config.selectedModule.angle;
+                    document.getElementById('turretSpeed').value = config.selectedModule.speed;
+                    document.getElementById('turretAzimuthB').value = config.selectedModule.azimuth_b;
+                }
+            }
+
+            // 更新模块
+            function updateModule() {
+                if (!config.selectedModule) return;
+                
+                if (config.selectedModule.type === 'armament') {
+                    config.selectedModule.name = document.getElementById('weaponName').value;
+                    config.selectedModule.forward = parseFloat(document.getElementById('weaponForward').value);
+                    config.selectedModule.side = parseFloat(document.getElementById('weaponSide').value);
+                    config.selectedModule.angle = parseFloat(document.getElementById('weaponAngle').value);
+                    config.selectedModule.count = parseInt(document.getElementById('weaponCount').value);
+                    config.selectedModule.symmetrical = document.getElementById('weaponSymmetrical').checked;
+                    config.selectedModule.hidden = document.getElementById('weaponHidden').checked;
+                    config.selectedModule.external = document.getElementById('weaponExternal').checked;
+                } else if (config.selectedModule.type === 'turret') {
+                    config.selectedModule.name = document.getElementById('turretName').value;
+                    config.selectedModule.forward = parseFloat(document.getElementById('turretForward').value);
+                    config.selectedModule.side = parseFloat(document.getElementById('turretSide').value);
+                    config.selectedModule.angle = parseFloat(document.getElementById('turretAngle').value);
+                    config.selectedModule.speed = document.getElementById('turretSpeed').value;
+                    config.selectedModule.azimuth_b = parseInt(document.getElementById('turretAzimuthB').value);
+                }
+                
+                updateModuleList();
+                drawCoordinateSystem();
+            }
+
+            // 删除模块
+            function deleteModule() {
+                if (!config.selectedModule) return;
+                
+                const index = config.modules.indexOf(config.selectedModule);
+                if (index !== -1) {
+                    config.modules.splice(index, 1);
+                    config.selectedModule = null;
+                    if (moduleEditor) moduleEditor.classList.add('hidden');
+                    updateModuleList();
+                    drawCoordinateSystem();
+                }
+            }
+
+            // 生成船只代码
+            function generateShipCode() {
+                const shipName = document.getElementById('shipName').value;
+                const shipClass = shipClassSelect.value === 'custom' ? shipClassCustom.value : shipClassSelect.value;
+                const shipLevel = document.getElementById('shipLevel').value;
+                const shipLength = document.getElementById('shipLength').value;
+                const shipWidth = document.getElementById('shipWidth').value;
+                const shipDraft = document.getElementById('shipDraft').value;
+                
+                if (shipClassSelect.value === 'custom' && !shipClassCustom.value.trim()) {
+                    alert('请输入自定义船只类型');
+                    return;
+                }
+                
+                let code = `#[info(\n        label = "${shipName}",\n        link = "https://en.wikipedia.org/wiki/${shipName}-class_${shipClass.toLowerCase()}"\n    )]\n`;
+                code += `    #[entity(Boat, ${shipClass}, level = ${shipLevel})]\n`;
+                code += `    #[size(length = ${shipLength}, width = ${shipWidth}, draft = ${shipDraft})]\n`;
+                code += `    #[props(speed = 16.977)]\n`;
+                code += `    #[sensors(radar, visual)]\n`;
+                
+                // 添加武器模块
+                config.modules.filter(m => m.type === 'armament').forEach(module => {
+                    code += `    #[armament(${module.name}, forward = ${module.forward}, side = ${module.side}, angle = ${module.angle}, count = ${module.count}`;
+                    if (module.symmetrical) code += ', symmetrical';
+                    if (module.hidden) code += ', hidden';
+                    if (module.external) code += ', external';
+                    code += ')]\n';
+                });
+                
+                // 添加炮塔模块
+                config.modules.filter(m => m.type === 'turret').forEach(module => {
+                    code += `    #[turret(${module.name}, forward = ${module.forward}, side = ${module.side}, ${module.speed}, azimuth_b = ${module.azimuth_b})]\n`;
+                });
+                
+                code += `    ${shipName},`;
+                
+                codeOutput.textContent = code;
+            }
+
+            // 事件监听器
+            canvas.addEventListener('mousedown', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                config.isDragging = true;
+                config.lastX = e.clientX;
+                config.lastY = e.clientY;
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                updateInfoPanel(x, y);
+                
+                if (config.isDragging) {
+                    const dx = e.clientX - config.lastX;
+                    const dy = e.clientY - config.lastY;
+                    
+                    config.offsetX += dx;
+                    config.offsetY += dy;
+                    
+                    config.lastX = e.clientX;
+                    config.lastY = e.clientY;
+                    
+                    drawCoordinateSystem();
+                    updateImagePosition();
+                }
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                config.isDragging = false;
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                config.isDragging = false;
+            });
+
+            // 图片拖拽事件 - 现在通过图片本身的鼠标事件处理
+            shipImage.addEventListener('mousedown', (e) => {
+                if (config.imageLocked) return; // 如果图片被锁定，不处理拖拽
+                
+                e.stopPropagation(); // 阻止事件冒泡到canvas
+                
+                config.isImageDragging = true;
+                config.lastImageX = e.clientX;
+                config.lastImageY = e.clientY;
+                
+                // 防止图片被拖拽（在某些浏览器中）
+                e.preventDefault();
+            });
+
+            shipImage.addEventListener('mousemove', (e) => {
+                if (config.imageLocked || !config.isImageDragging) return;
+                
+                e.stopPropagation(); // 阻止事件冒泡到canvas
+                
+                const dx = e.clientX - config.lastImageX;
+                const dy = e.clientY - config.lastImageY;
+                
+                config.imageOffsetX += dx;
+                config.imageOffsetY += dy;
+                
+                config.lastImageX = e.clientX;
+                config.lastImageY = e.clientY;
+                
+                updateImagePosition();
+            });
+
+            shipImage.addEventListener('mouseup', () => {
+                config.isImageDragging = false;
+            });
+
+            shipImage.addEventListener('mouseleave', () => {
+                config.isImageDragging = false;
+            });
+
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                
+                const mathCoords = screenToMath(e.clientX, e.clientY);
+                
+                if (e.deltaY < 0) {
+                    // 放大
+                    config.scale *= 1.1;
+                } else {
+                    // 缩小
+                    config.scale /= 1.1;
+                }
+                
+                // 限制缩放范围
+                config.scale = Math.max(10, Math.min(500, config.scale));
+                
+                // 调整偏移以保持鼠标位置对应的数学坐标不变
+                const newMathCoords = screenToMath(e.clientX, e.clientY);
+                config.offsetX += (newMathCoords.forward - mathCoords.forward) * config.scale;
+                config.offsetY -= (newMathCoords.side - mathCoords.side) * config.scale;
+                
+                // 重新计算图片尺寸（如果开启了自动适应）
+                if (config.hasImage && config.autoFitImage) {
+                    calculateImageDisplaySize();
+                }
+                
+                drawCoordinateSystem();
+                updateImagePosition();
+            });
+
+            canvas.addEventListener('dblclick', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const mathCoords = screenToMath(x, y);
+                
+                // 添加当前类型的模块
+                addModule(mathCoords.forward, mathCoords.side);
+            });
+
+            // 控制按钮事件
+            document.getElementById('zoomIn').addEventListener('click', () => {
+                config.scale *= 1.2;
+                config.scale = Math.min(500, config.scale);
+                
+                if (config.hasImage && config.autoFitImage) {
+                    calculateImageDisplaySize();
+                }
+                
+                drawCoordinateSystem();
+                updateImagePosition();
+            });
+
+            document.getElementById('zoomOut').addEventListener('click', () => {
+                config.scale /= 1.2;
+                config.scale = Math.max(10, config.scale);
+                
+                if (config.hasImage && config.autoFitImage) {
+                    calculateImageDisplaySize();
+                }
+                
+                drawCoordinateSystem();
+                updateImagePosition();
+            });
+
+            document.getElementById('resetView').addEventListener('click', () => {
+                config.scale = 50;
+                config.offsetX = 0;
+                config.offsetY = 0;
+                
+                if (config.hasImage && config.autoFitImage) {
+                    calculateImageDisplaySize();
+                }
+                
+                drawCoordinateSystem();
+                updateImagePosition();
+            });
+
+            document.getElementById('importImageBtn').addEventListener('click', () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            // 使用Blob URL避免跨域问题
+                            const blob = new Blob([event.target.result], { type: file.type });
+                            const blobUrl = URL.createObjectURL(blob);
+                            
+                            shipImage.src = blobUrl;
+                            shipImage.style.display = 'block';
+                            config.hasImage = true;
+                            
+                            // 显示图片控制面板
+                            if (imageControlPanel) imageControlPanel.style.display = 'block';
+                            
+                            shipImage.onload = () => {
+                                // 保存原始图片尺寸
+                                config.imageOriginalWidth = shipImage.naturalWidth;
+                                config.imageOriginalHeight = shipImage.naturalHeight;
+                                
+                                // 默认使用船只尺寸作为图片代表的尺寸
+                                config.imageLength = parseFloat(document.getElementById('shipLength').value);
+                                config.imageWidth = parseFloat(document.getElementById('shipWidth').value);
+                                
+                                // 初始化图片控制面板
+                                document.getElementById('imageLength').value = config.imageLength;
+                                document.getElementById('imageWidth').value = config.imageWidth;
+                                document.getElementById('lockAspectRatio').checked = config.lockAspectRatio;
+                                document.getElementById('autoFitImage').checked = config.autoFitImage;
+                                document.getElementById('centerImage').checked = config.centerImage;
+                                
+                                // 设置默认映射模式
+                                document.getElementById('mapWholeImage').checked = true;
+                                config.mappingMode = 'whole';
+                                
+                                // 初始化检测设置
+                                if (sensitivitySlider) sensitivitySlider.value = config.detectionSensitivity;
+                                if (sensitivityValue) sensitivityValue.textContent = config.detectionSensitivity;
+                                if (detectEdges) detectEdges.checked = config.detectEdgePixels;
+                                if (autoCenterContent) autoCenterContent.checked = config.autoCenterContent;
+                                
+                                // 重置内容边界信息
+                                config.contentBounds = null;
+                                config.fileBounds = null;
+                                config.showContentBounds = false;
+                                if (showContentBoundsBtn) showContentBoundsBtn.textContent = '显示内容边界';
+                                
+                                // 重置图片位置和缩放
+                                resetImage();
+                                
+                                // 默认锁定图片，防止误操作
+                                config.imageLocked = true;
+                                if (lockImageBtn) {
+                                    lockImageBtn.innerHTML = '🔒 锁定图片';
+                                    lockImageBtn.classList.add('locked');
+                                }
+                                shipImage.style.pointerEvents = 'none';
+                                
+                                // 更新尺寸信息
+                                updateDimensionInfo();
+                                
+                                // 计算图片显示尺寸
+                                calculateImageDisplaySize();
+                                updateImagePosition();
+                                drawCoordinateSystem();
+                                
+                                console.log('图片加载完成:', {
+                                    width: config.imageOriginalWidth,
+                                    height: config.imageOriginalHeight,
+                                    src: shipImage.src.substring(0, 50) + '...'
+                                });
+                            };
+                            
+                            shipImage.onerror = (error) => {
+                                console.error('图片加载失败:', error);
+                                alert('图片加载失败，请重试');
+                            };
+                        };
+                        reader.readAsArrayBuffer(file); // 使用ArrayBuffer而不是DataURL
+                    }
+                };
+                
+                input.click();
+            });
+
+            // 重置图片按钮事件
+            if (imageResetBtn) {
+                imageResetBtn.addEventListener('click', resetImage);
+            }
+
+            // 图片尺寸控制事件
+            document.getElementById('imageLength').addEventListener('input', updateImageSize);
+            document.getElementById('imageLength').addEventListener('change', updateImageSize);
+            document.getElementById('imageWidth').addEventListener('input', updateImageSize);
+            document.getElementById('imageWidth').addEventListener('change', updateImageSize);
+
+            document.getElementById('lockAspectRatio').addEventListener('change', (e) => {
+                config.lockAspectRatio = e.target.checked;
+                if (config.hasImage) {
+                    updateImageSize();
+                }
+            });
+
+            document.getElementById('autoFitImage').addEventListener('change', (e) => {
+                config.autoFitImage = e.target.checked;
+                if (config.hasImage) {
+                    if (config.autoFitImage) {
+                        // 切换到自动适应模式，重新计算尺寸
+                        calculateImageDisplaySize();
+                    }
+                    updateImagePosition();
+                }
+            });
+
+            document.getElementById('centerImage').addEventListener('change', (e) => {
+                config.centerImage = e.target.checked;
+                if (config.hasImage) {
+                    updateImagePosition();
+                }
+            });
+
+            document.getElementById('resetImageSizeBtn').addEventListener('click', () => {
+                if (!config.hasImage) return;
+                
+                // 重置为船只尺寸
+                config.imageLength = parseFloat(document.getElementById('shipLength').value);
+                config.imageWidth = parseFloat(document.getElementById('shipWidth').value);
+                
+                // 更新UI
+                document.getElementById('imageLength').value = config.imageLength;
+                document.getElementById('imageWidth').value = config.imageWidth;
+                
+                // 重新计算显示尺寸
+                calculateImageDisplaySize();
+                updateImagePosition();
+            });
+
+            document.getElementById('imageScaleUpBtn').addEventListener('click', () => {
+                if (!config.hasImage) return;
+                
+                // 关闭自动适应（因为要手动缩放）
+                config.autoFitImage = false;
+                document.getElementById('autoFitImage').checked = false;
+                
+                // 手动放大图片
+                config.imageScale *= 1.2;
+                updateImagePosition();
+            });
+
+            document.getElementById('imageScaleDownBtn').addEventListener('click', () => {
+                if (!config.hasImage) return;
+                
+                // 关闭自动适应（因为要手动缩放）
+                config.autoFitImage = false;
+                document.getElementById('autoFitImage').checked = false;
+                
+                // 手动缩小图片
+                config.imageScale /= 1.2;
+                updateImagePosition();
+            });
+
+            document.getElementById('clearAllBtn').addEventListener('click', () => {
+                if (confirm('确定要清除所有模块吗？')) {
+                    config.modules = [];
+                    config.selectedModule = null;
+                    if (moduleEditor) moduleEditor.classList.add('hidden');
+                    updateModuleList();
+                    drawCoordinateSystem();
+                }
+            });
+
+            document.getElementById('addModuleBtn').addEventListener('click', () => {
+                addModule(0, 0);
+            });
+
+            document.getElementById('addArmamentBtn').addEventListener('click', () => {
+                config.currentModuleType = 'armament';
+                document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+                document.getElementById('addArmamentBtn').classList.add('active');
+            });
+
+            document.getElementById('addTurretBtn').addEventListener('click', () => {
+                config.currentModuleType = 'turret';
+                document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+                document.getElementById('addTurretBtn').classList.add('active');
+            });
+
+            document.getElementById('saveModuleBtn').addEventListener('click', updateModule);
+            document.getElementById('deleteModuleBtn').addEventListener('click', deleteModule);
+            document.getElementById('generateCodeBtn').addEventListener('click', generateShipCode);
+
+            // 模块类型标签切换
+            document.querySelectorAll('.module-type-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.module-type-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    const type = tab.dataset.type;
+                    if (type === 'armament') {
+                        config.currentModuleType = 'armament';
+                        document.getElementById('addArmamentBtn').click();
+                    } else if (type === 'turret') {
+                        config.currentModuleType = 'turret';
+                        document.getElementById('addTurretBtn').click();
+                    }
+                });
+            });
+
+            // 船只尺寸变化时，同步更新图片尺寸（如果开启了自动同步）
+            document.getElementById('shipLength').addEventListener('change', () => {
+                if (config.hasImage && config.autoFitImage) {
+                    config.imageLength = parseFloat(document.getElementById('shipLength').value);
+                    document.getElementById('imageLength').value = config.imageLength;
+                    calculateImageDisplaySize();
+                    updateImagePosition();
+                }
+            });
+
+            document.getElementById('shipWidth').addEventListener('change', () => {
+                if (config.hasImage && config.autoFitImage) {
+                    config.imageWidth = parseFloat(document.getElementById('shipWidth').value);
+                    document.getElementById('imageWidth').value = config.imageWidth;
+                    calculateImageDisplaySize();
+                    updateImagePosition();
+                }
+            });
+
+            // 初始化
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+            drawCoordinateSystem();
+            updateModuleList();
+            
+            console.log('船只建造工具初始化完成');
+        });
+    </script>
+</body>
+</html>
